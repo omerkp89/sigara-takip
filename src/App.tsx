@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Cigarette, Clock, Calendar, Plus, RotateCcw } from 'lucide-react';
+import { Cigarette, Clock, Calendar, Plus, RotateCcw, History } from 'lucide-react';
 
 interface CigaretteLog {
   date: string;
@@ -11,6 +11,7 @@ export default function App() {
   const [todayCount, setTodayCount] = useState(0);
   const [lastSmokedTime, setLastSmokedTime] = useState<number | null>(null);
   const [timeSinceLastCigarette, setTimeSinceLastCigarette] = useState<string>('');
+  const [history, setHistory] = useState<CigaretteLog[]>([]);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -24,6 +25,12 @@ export default function App() {
         setTodayCount(todayLog.count);
         setLastSmokedTime(todayLog.lastSmoked);
       }
+
+      // Geçmiş günleri al (bugün hariç) ve tarih sırasına göre sırala
+      const pastLogs = logs
+        .filter(log => log.date !== today)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      setHistory(pastLogs);
     }
   }, [today]);
 
@@ -65,6 +72,12 @@ export default function App() {
     }
 
     localStorage.setItem('cigaretteLog', JSON.stringify(logs));
+
+    // Geçmiş kayıtları güncelle
+    const pastLogs = logs
+      .filter(log => log.date !== today)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    setHistory(pastLogs);
   };
 
   const resetDay = () => {
@@ -77,8 +90,23 @@ export default function App() {
         let logs: CigaretteLog[] = JSON.parse(storedData);
         logs = logs.filter(log => log.date !== today);
         localStorage.setItem('cigaretteLog', JSON.stringify(logs));
+
+        // Geçmiş kayıtları güncelle
+        const pastLogs = logs.sort((a, b) => b.date.localeCompare(a.date));
+        setHistory(pastLogs);
       }
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const daysDiff = Math.floor((new Date(today).getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff === 1) return 'Dün';
+    if (daysDiff === 2) return 'Önceki Gün';
+
+    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+    return date.toLocaleDateString('tr-TR', options);
   };
 
   return (
@@ -119,7 +147,7 @@ export default function App() {
             <span className="text-lg font-semibold">Sigara İçtim</span>
           </button>
 
-          <div className="bg-slate-50 rounded-2xl p-6">
+          <div className="bg-slate-50 rounded-2xl p-6 mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="w-5 h-5 text-slate-600" />
               <h2 className="font-medium text-slate-700">Son Sigaradan Beri</h2>
@@ -128,6 +156,34 @@ export default function App() {
               {timeSinceLastCigarette}
             </p>
           </div>
+
+          {history.length > 0 && (
+            <div className="bg-slate-50 rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <History className="w-5 h-5 text-slate-600" />
+                <h2 className="font-medium text-slate-700">Geçmiş Kayıtlar</h2>
+              </div>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {history.map((log) => (
+                  <div
+                    key={log.date}
+                    className="flex items-center justify-between p-3 bg-white rounded-xl"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-slate-100 rounded-lg">
+                        <Calendar className="w-4 h-4 text-slate-600" />
+                      </div>
+                      <span className="text-slate-700">{formatDate(log.date)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl font-bold text-red-600">{log.count}</span>
+                      <Cigarette className="w-4 h-4 text-red-600" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
